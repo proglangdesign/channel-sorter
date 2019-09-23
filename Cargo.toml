@@ -1,0 +1,9 @@
+[package]
+name = "channel-sorter"
+version = "0.1.0"
+authors = ["Timon Paßlick <timon.passlick@gmx.de>"]
+edition = "2018"
+
+[dependencies]
+serenity = "0.7.0"
+chrono = "*"
