@@ -17,9 +17,7 @@ impl EventHandler for Handler {
         let mut channels = guild.channels(&ctx).expect("Err getting channels");
         let relevant_channels = channels.iter_mut().filter_map(|(_id, guild_channel)| {
             match guild_channel.category_id.unwrap_or(guild_channel.id).0 {
-                id if id == ACTIVE_CATEGORY_ID || id == INACTIVE_CATEGORY_ID  => {
-                    Some(guild_channel)
-                }
+                id if id == ACTIVE_CATEGORY_ID || id == INACTIVE_CATEGORY_ID => Some(guild_channel),
                 _ => None,
             }
         });
@@ -52,7 +50,8 @@ impl EventHandler for Handler {
 }
 
 fn main() {
-    const TOKEN: &str = "NjIyNzk2MDI4NDE1ODM2MTYz.XX5IFg.m7R5jS0kQOhYf_43gMpm47CrtjI";
+    //token is in gitignore so that it doesn't get leaked
+    const TOKEN: &str = include_str!("bot-token.txt");
 
     let mut client = Client::new(TOKEN, Handler).expect("Err creating client");
 
