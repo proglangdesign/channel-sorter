@@ -34,7 +34,7 @@ impl EventHandler for Handler {
                     if {
                         let timestamp_utc: DateTime<Utc> =
                             message.edited_timestamp.unwrap_or(message.timestamp).into();
-                        Utc::now() - timestamp_utc < Duration::seconds(10) //days(30 * 2)
+                        Utc::now() - timestamp_utc < Duration::days(30 * 2)
                     } =>
                 {
                     ACTIVE_CATEGORY_ID
