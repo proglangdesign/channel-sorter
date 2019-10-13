@@ -16,8 +16,10 @@ impl EventHandler for Handler {
         let guild: GuildId = GuildId(622797326553186364);
         let mut channels = guild.channels(&ctx).expect("Err getting channels");
         let relevant_channels = channels.iter_mut().filter_map(|(_id, guild_channel)| {
-            match guild_channel.category_id.unwrap_or(guild_channel.id).0 {
-                id if id == ACTIVE_CATEGORY_ID || id == INACTIVE_CATEGORY_ID => Some(guild_channel),
+            match guild_channel.category_id {
+                Some(id) if id == ACTIVE_CATEGORY_ID || id == INACTIVE_CATEGORY_ID => {
+                    Some(guild_channel)
+                }
                 _ => None,
             }
         });
@@ -25,7 +27,7 @@ impl EventHandler for Handler {
             println!("{}", cnt);
             let new_category_id = match channel
                 .messages(&ctx, |get_messages| get_messages.limit(1))
-                .expect("Err getting latest message in channel")
+                .expect("Err getting latest message in channel, even if it didn't exist")
                 .get(0)
             {
                 Some(message)
@@ -40,7 +42,7 @@ impl EventHandler for Handler {
                 _ => INACTIVE_CATEGORY_ID,
             };
             if new_category_id == channel.category_id.unwrap_or(channel.id).0 {
-                return;
+                continue;
             }
             let _ = channel.edit(&ctx, |edit_channel| {
                 edit_channel.category(ChannelId(new_category_id))
