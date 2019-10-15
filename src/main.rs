@@ -34,8 +34,7 @@ impl EventHandler for Handler {
                 _ => None,
             }
         });
-        for (cnt, channel) in relevant_channels.enumerate() {
-            println!("{}", cnt);
+        for channel in relevant_channels {
             let new_category = match channel
                 .messages(&ctx, |get_messages| get_messages.limit(1))
                 .expect("Err getting latest message in channel, even if it didn't exist")
