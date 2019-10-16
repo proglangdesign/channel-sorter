@@ -2,7 +2,7 @@ use chrono::{offset::Utc, DateTime, Duration};
 use serenity::{
     model::{
         channel::Message,
-        id::{ChannelId, GuildId},
+        id::{ChannelId, GuildId, UserId},
     },
     prelude::*,
 };
@@ -12,6 +12,7 @@ const TOKEN: &str = include_str!("bot-token.txt");
 const ACTIVE_CATEGORY: ChannelId = ChannelId(622797326553186365);
 const INACTIVE_CATEGORY: ChannelId = ChannelId(622797326553186367);
 const GUILD: GuildId = GuildId(622797326553186364);
+const GITHUB_BOT: UserId = UserId(558867938212577282);
 
 fn main() {
     let mut client = Client::new(TOKEN, Handler).expect("Err creating client");
@@ -35,11 +36,21 @@ impl EventHandler for Handler {
             }
         });
         for channel in relevant_channels {
-            let new_category = match channel
-                .messages(&ctx, |get_messages| get_messages.limit(1))
-                .expect("Err getting latest message in channel, even if it didn't exist")
-                .get(0)
-            {
+            let nth_recent_message = |n| {
+                channel
+                    .messages(&ctx, |get_messages| get_messages.limit(n))
+                    .expect("Err getting latest message in channel, even if it didn't exist")
+                    .pop()
+            };
+            let mut last_message = nth_recent_message(1);
+            for n in 2..=100 {
+                match last_message {
+                    None => break,
+                    Some(ref message) if message.author.id == GITHUB_BOT => break,
+                    _ => last_message = nth_recent_message(n),
+                }
+            }
+            let new_category = match last_message {
                 Some(message)
                     if {
                         let timestamp_utc: DateTime<Utc> =
