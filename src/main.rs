@@ -45,9 +45,10 @@ impl EventHandler for Handler {
             let mut last_message = nth_recent_message(1);
             for n in 2..=100 {
                 match last_message {
-                    None => break,
-                    Some(ref message) if message.author.id == GITHUB_BOT => continue,
-                    _ => last_message = nth_recent_message(n),
+                    Some(ref message) if message.author.id == GITHUB_BOT => {
+                        last_message = nth_recent_message(n);
+                    }
+                    _ => break,
                 }
             }
             let new_category = match last_message {
