@@ -46,7 +46,7 @@ impl EventHandler for Handler {
             for n in 2..=100 {
                 match last_message {
                     None => break,
-                    Some(ref message) if message.author.id == GITHUB_BOT => break,
+                    Some(ref message) if message.author.id == GITHUB_BOT => continue,
                     _ => last_message = nth_recent_message(n),
                 }
             }
