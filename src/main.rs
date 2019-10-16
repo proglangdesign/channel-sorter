@@ -9,9 +9,9 @@ use serenity::{
 
 //token is in gitignore so that it doesn't get leaked
 const TOKEN: &str = include_str!("bot-token.txt");
-const ACTIVE_CATEGORY: ChannelId = ChannelId(622797326553186365);
-const INACTIVE_CATEGORY: ChannelId = ChannelId(622797326553186367);
-const GUILD: GuildId = GuildId(622797326553186364);
+const ACTIVE_CATEGORY: ChannelId = ChannelId(530604963911696404);
+const INACTIVE_CATEGORY: ChannelId = ChannelId(0);
+const GUILD: GuildId = GuildId(530598289813536771);
 const GITHUB_BOT: UserId = UserId(558867938212577282);
 
 fn main() {
