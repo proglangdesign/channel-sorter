@@ -15,10 +15,15 @@ const GUILD: GuildId = GuildId(530598289813536771);
 const GITHUB_BOT: UserId = UserId(558867938212577282);
 
 fn main() {
-    let mut client = Client::new(TOKEN, Handler).expect("Err creating client");
+    let mut client = loop {
+        match Client::new(TOKEN, Handler) {
+            Ok(client) => break client,
+            Err(why) => eprintln!("Client creation error: {:?}", why),
+        }
+    };
 
-    if let Err(why) = client.start() {
-        println!("Client error: {:?}", why);
+    while let Err(why) = client.start() {
+        eprintln!("Client error: {:?}", why);
     }
 }
 
@@ -26,7 +31,13 @@ struct Handler;
 
 impl EventHandler for Handler {
     fn message(&self, ctx: Context, _msg: Message) {
-        let mut channels = GUILD.channels(&ctx).expect("Err getting channels");
+        let mut channels = match GUILD.channels(&ctx) {
+            Ok(channels) => channels,
+            Err(why) => {
+                eprintln!("Couldn't get channels: {:?}", why);
+                return;
+            }
+        };
         let relevant_channels = channels.iter_mut().filter_map(|(_id, guild_channel)| {
             match guild_channel.category_id {
                 Some(category) if category == ACTIVE_CATEGORY || category == INACTIVE_CATEGORY => {
@@ -36,26 +47,30 @@ impl EventHandler for Handler {
             }
         });
         for channel in relevant_channels {
-            let nth_recent_message = |n| {
-                channel
-                    .messages(&ctx, |get_messages| get_messages.limit(n))
-                    .expect("Err getting latest message in channel, even if it didn't exist")
-                    .pop()
-            };
-            let mut last_message = nth_recent_message(1);
+            let mut last_message;
             for n in 2..=100 {
-                match last_message {
-                    Some(ref message) if message.author.id == GITHUB_BOT => {
-                        last_message = nth_recent_message(n);
+                last_message = match channel.messages(&ctx, |get_messages| get_messages.limit(n)) {
+                    Ok(messages) => messages,
+                    Err(why) => {
+                        eprintln!(
+                            "Error getting last message, even if it didn't exist: {:?}",
+                            why
+                        );
+                        return;
                     }
+                }
+                .pop();
+
+                match &last_message {
+                    Some(ref message) if message.author.id == GITHUB_BOT => {}
                     _ => break,
                 }
             }
-            let new_category = match last_message {
-                Some(message)
+            let new_category = match &last_message {
+                Some(ref message)
                     if {
                         let timestamp_utc: DateTime<Utc> =
-                            message.edited_timestamp.unwrap_or(message.timestamp).into();
+                            message.edited_timestamp.unwrap_or(message.clone().timestamp).into();
                         Utc::now() - timestamp_utc < Duration::days(30 * 2)
                     } =>
                 {
