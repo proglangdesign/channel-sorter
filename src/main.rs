@@ -47,7 +47,7 @@ impl EventHandler for Handler {
             }
         });
         for channel in relevant_channels {
-            let mut last_message;
+            let mut last_message = None;
             for n in 2..=100 {
                 last_message = match channel.messages(&ctx, |get_messages| get_messages.limit(n)) {
                     Ok(messages) => messages,
