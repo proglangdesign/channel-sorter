@@ -46,17 +46,15 @@ impl EventHandler for Handler {
                 _ => None,
             }
         });
-        for channel in relevant_channels {
+        'channel_loop: for channel in relevant_channels {
             let mut last_message = None;
-            for n in 2..=100 {
+            //no more than 100 messages is allowed
+            for n in 1..=100 {
                 last_message = match channel.messages(&ctx, |get_messages| get_messages.limit(n)) {
                     Ok(messages) => messages,
-                    Err(why) => {
-                        eprintln!(
-                            "Error getting last message, even if it didn't exist: {:?}",
-                            why
-                        );
-                        return;
+                    Err(_) => {
+                        //we just skip this channel if we can't access it
+                        continue 'channel_loop;
                     }
                 }
                 .pop();
@@ -76,6 +74,7 @@ impl EventHandler for Handler {
                 {
                     ACTIVE_CATEGORY
                 }
+                None => ACTIVE_CATEGORY,
                 _ => INACTIVE_CATEGORY,
             };
             if new_category == channel.category_id.unwrap() {
