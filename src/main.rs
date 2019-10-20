@@ -6,6 +6,7 @@ use serenity::{
     },
     prelude::*,
 };
+use std::convert::TryInto;
 
 //token is in gitignore so that it doesn't get leaked
 const TOKEN: &str = include_str!("bot-token.txt");
@@ -38,6 +39,15 @@ impl EventHandler for Handler {
                 return;
             }
         };
+        let names_and_positions: Vec<_> = channels
+            .iter()
+            .filter_map(|(_id, guild_channel)| match guild_channel.category_id {
+                Some(category) if category == ACTIVE_CATEGORY => {
+                    Some((guild_channel.name.clone(), guild_channel.position))
+                }
+                _ => None,
+            })
+            .collect();
         let relevant_channels = channels.iter_mut().filter_map(|(_id, guild_channel)| {
             match guild_channel.category_id {
                 Some(category) if category == ACTIVE_CATEGORY || category == INACTIVE_CATEGORY => {
@@ -75,7 +85,21 @@ impl EventHandler for Handler {
             if new_category == channel.category_id.unwrap() {
                 continue;
             }
-            let _ = channel.edit(&ctx, |edit_channel| edit_channel.category(new_category));
+            let new_position = names_and_positions
+                .iter()
+                .fold(&(String::from(""), 0), |cur, msg| {
+                    if msg.0 >= channel.name && msg.0 < cur.0 {
+                        msg
+                    } else {
+                        cur
+                    }
+                })
+                .1
+                .try_into()
+                .unwrap();
+            let _ = channel.edit(&ctx, |edit_channel| {
+                edit_channel.category(new_category).position(new_position)
+            });
         }
     }
 }
