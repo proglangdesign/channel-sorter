@@ -47,29 +47,23 @@ impl EventHandler for Handler {
             }
         });
         'channel_loop: for channel in relevant_channels {
-            let mut last_message = None;
             //no more than 100 messages is allowed
-            for n in 1..=100 {
-                last_message = match channel.messages(&ctx, |get_messages| get_messages.limit(n)) {
-                    Ok(messages) => messages,
-                    Err(_) => {
-                        //we just skip this channel if we can't access it
-                        continue 'channel_loop;
-                    }
+            let messages = match channel.messages(&ctx, |get_messages| get_messages.limit(100)) {
+                Ok(messages) => messages,
+                Err(_) => {
+                    //we just skip this channel if we can't access it
+                    continue 'channel_loop;
                 }
-                .pop();
-
-                match &last_message {
-                    Some(message) if message.author.id == GITHUB_BOT => {}
-                    _ => break,
-                }
-            }
+            };
+            let last_message = messages
+                .iter()
+                .find(|message| message.author.id != GITHUB_BOT);
             let new_category = match &last_message {
                 Some(message)
                     if {
-                        let timestamp_utc: DateTime<Utc> =
+                        let timestamp: DateTime<Utc> =
                             message.edited_timestamp.unwrap_or(message.timestamp).into();
-                        Utc::now() - timestamp_utc < Duration::days(30 * 2)
+                        Utc::now() - timestamp < Duration::days(30 * 2)
                     } =>
                 {
                     ACTIVE_CATEGORY
