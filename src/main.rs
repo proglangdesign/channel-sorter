@@ -74,7 +74,8 @@ impl EventHandler for Handler {
                 {
                     ACTIVE_CATEGORY
                 }
-                None => ACTIVE_CATEGORY,
+                //empty channels or those with GitHub bot messages only get ignored
+                None => continue 'channel_loop,
                 _ => INACTIVE_CATEGORY,
             };
             if new_category == channel.category_id.unwrap() {
