@@ -13,7 +13,6 @@ const TOKEN: &str = include_str!("bot-token.txt");
 const ACTIVE_CATEGORY: ChannelId = ChannelId(530604963911696404);
 const INACTIVE_CATEGORY: ChannelId = ChannelId(541808219593506827);
 const GUILD: GuildId = GuildId(530598289813536771);
-const GITHUB_BOT: UserId = UserId(558867938212577282);
 
 fn main() {
     let mut client = loop {
@@ -65,9 +64,7 @@ impl EventHandler for Handler {
                     continue 'channel_loop;
                 }
             };
-            let last_message = messages
-                .iter()
-                .find(|message| message.author.id != GITHUB_BOT);
+            let last_message = messages.iter().find(|message| message.webhook_id == None);
             let new_category = match &last_message {
                 Some(message)
                     if {
