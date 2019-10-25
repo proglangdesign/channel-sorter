@@ -89,7 +89,7 @@ impl EventHandler for Handler {
                         cur_name.cmp(msg_name)
                     }
                 })
-                .map(|(_name, pos)| *pos)
+                .map(|(name, pos)| if &channel.name < name { *pos } else { pos + 1 })
                 .unwrap_or(0)
                 .try_into()
                 .unwrap();
