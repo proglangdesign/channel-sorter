@@ -55,15 +55,15 @@ impl EventHandler for Handler {
                 _ => None,
             }
         });
-        'channel_loop: for channel in relevant_channels {
-            //no more than 100 messages is allowed
+        for channel in relevant_channels {
+            //no more than 100 messages allowed
             let messages = match channel.messages(&ctx, |get_messages| get_messages.limit(100)) {
                 Ok(messages) => messages,
-                Err(_) => {
-                    //we just skip this channel if we can't access it
-                    continue 'channel_loop;
-                }
+                Err(_) => continue,
             };
+            if messages.is_empty() {
+                continue;
+            }
             let last_message = messages.iter().find(|message| message.webhook_id == None);
             let new_category = match &last_message {
                 Some(message)
@@ -75,8 +75,6 @@ impl EventHandler for Handler {
                 {
                     ACTIVE_CATEGORY
                 }
-                //empty channels get ignored
-                None if messages.is_empty() => continue 'channel_loop,
                 _ => INACTIVE_CATEGORY,
             };
             if new_category == channel.category_id.unwrap() {
