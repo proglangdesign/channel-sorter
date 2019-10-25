@@ -2,7 +2,7 @@ use chrono::{offset::Utc, DateTime, Duration};
 use serenity::{
     model::{
         channel::Message,
-        id::{ChannelId, GuildId, UserId},
+        id::{ChannelId, GuildId},
     },
     prelude::*,
 };
@@ -75,8 +75,8 @@ impl EventHandler for Handler {
                 {
                     ACTIVE_CATEGORY
                 }
-                //empty channels or those with GitHub bot messages only get ignored
-                None => continue 'channel_loop,
+                //empty channels get ignored
+                None if messages.is_empty() => continue 'channel_loop,
                 _ => INACTIVE_CATEGORY,
             };
             if new_category == channel.category_id.unwrap() {
