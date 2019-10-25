@@ -8,7 +8,7 @@ use serenity::{
 };
 use std::convert::TryInto;
 
-//token is in gitignore so that it doesn't get leaked
+//token in gitignore to prevent leak
 const TOKEN: &str = include_str!("bot-token.txt");
 const ACTIVE_CATEGORY: ChannelId = ChannelId(530604963911696404);
 const INACTIVE_CATEGORY: ChannelId = ChannelId(541808219593506827);
@@ -82,14 +82,15 @@ impl EventHandler for Handler {
             }
             let new_position = names_and_positions
                 .iter()
-                .fold(&(String::from(""), 0), |cur, msg| {
-                    if msg.0 >= channel.name && msg.0 < cur.0 {
-                        msg
+                .max_by(|(cur_name, _cur_pos), (msg_name, _msg_pos)| {
+                    if msg_name < &channel.name {
+                        msg_name.cmp(cur_name)
                     } else {
-                        cur
+                        cur_name.cmp(msg_name)
                     }
                 })
-                .1
+                .map(|(_name, pos)| *pos)
+                .unwrap_or(0)
                 .try_into()
                 .unwrap();
             let _ = channel.edit(&ctx, |edit_channel| {
