@@ -1,4 +1,7 @@
-use chrono::{offset::Utc, DateTime, Duration};
+use chrono::{
+    offset::{FixedOffset, Utc},
+    DateTime, Duration,
+};
 use serenity::{
     model::{
         channel::Message,
@@ -16,7 +19,12 @@ const GUILD: GuildId = GuildId(530598289813536771);
 
 fn main() {
     let mut client = loop {
-        match Client::new(TOKEN, Handler) {
+        match Client::new(
+            TOKEN,
+            Handler {
+                archived_explicitly: Default::default(),
+            },
+        ) {
             Ok(client) => break client,
             Err(why) => eprintln!("Client creation error: {:?}", why),
         }
@@ -27,7 +35,9 @@ fn main() {
     }
 }
 
-struct Handler;
+struct Handler {
+    archived_explicitly: RwLock<Vec<(ChannelId, DateTime<FixedOffset>)>>,
+}
 
 impl EventHandler for Handler {
     fn message(&self, ctx: Context, _msg: Message) {
@@ -65,6 +75,17 @@ impl EventHandler for Handler {
                 continue;
             }
             let last_message = messages.iter().find(|message| message.webhook_id == None);
+            if let Some(message) = last_message {
+                let entry = (
+                    channel.id,
+                    message.edited_timestamp.unwrap_or(message.timestamp),
+                );
+                if message.content.trim() == "!archive"
+                    && !self.archived_explicitly.read().contains(&entry)
+                {
+                    self.archived_explicitly.write().push(entry);
+                }
+            }
             let new_category = match &last_message {
                 Some(message)
                     if {
