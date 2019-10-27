@@ -5,5 +5,5 @@ authors = ["Timon Paßlick <timon.passlick@gmx.de>"]
 edition = "2018"
 
 [dependencies]
-serenity = "0.7.0"
+serenity = "0.7.2"
 chrono = "*"
