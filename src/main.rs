@@ -80,10 +80,17 @@ impl EventHandler for Handler {
                     channel.id,
                     message.edited_timestamp.unwrap_or(message.timestamp),
                 );
-                if message.content.trim() == "!archive"
-                    && !self.archived_explicitly.read().contains(&entry)
-                {
-                    self.archived_explicitly.write().push(entry);
+                let read_guard = self.archived_explicitly.read();
+                if message.content.trim() == "!archive" && !read_guard.contains(&entry) {
+                    let index_option = read_guard
+                        .iter()
+                        .position(|(id, _timestamp)| id == &channel.id);
+                    //read guard gets dropped here => write guard is ok now
+                    let mut write_guard = self.archived_explicitly.write();
+                    if let Some(index) = index_option {
+                        write_guard.remove(index);
+                    }
+                    write_guard.push(entry);
                 }
             }
             let new_category = match &last_message {
@@ -100,6 +107,16 @@ impl EventHandler for Handler {
             };
             if new_category == channel.category_id.unwrap() {
                 continue;
+            }
+            if new_category == ACTIVE_CATEGORY {
+                if let Some(index) = self
+                    .archived_explicitly
+                    .read()
+                    .iter()
+                    .position(|(id, _timestamp)| id == &channel.id)
+                {
+                    self.archived_explicitly.write().remove(index);
+                }
             }
             let new_position = names_and_positions
                 .iter()
