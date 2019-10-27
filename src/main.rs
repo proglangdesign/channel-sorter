@@ -9,7 +9,7 @@ use serenity::{
     },
     prelude::*,
 };
-use std::convert::TryInto;
+use std::{convert::TryInto, iter::once};
 
 //token in gitignore to prevent leak
 const TOKEN: &str = include_str!("bot-token.txt");
@@ -91,6 +91,7 @@ impl EventHandler for Handler {
                         write_guard.remove(index);
                     }
                     write_guard.push(entry);
+                    let _ = channel.delete_messages(&ctx, once(message));
                 }
             }
             let new_category = match &last_message {
