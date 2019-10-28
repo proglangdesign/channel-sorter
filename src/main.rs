@@ -6,6 +6,7 @@ use serenity::{
     model::{
         channel::Message,
         id::{ChannelId, GuildId},
+        permissions::Permissions,
     },
     prelude::*,
 };
@@ -90,7 +91,14 @@ impl EventHandler for Handler {
                     message.edited_timestamp.unwrap_or(message.timestamp),
                 );
                 let read_guard = self.archived_explicitly.read();
-                if message.content.trim() == "!archive" && !read_guard.contains(&entry) {
+                if message.content.trim() == "!archive"
+                    && match channel.permissions_for_user(&ctx, &message.author) {
+                        Ok(permissions) => permissions,
+                        Err(_) => continue,
+                    }
+                    .contains(Permissions::MANAGE_MESSAGES)
+                    && !read_guard.contains(&entry)
+                {
                     let index_option = read_guard
                         .iter()
                         .position(|(id, _timestamp)| id == &channel.id);
