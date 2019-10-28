@@ -106,28 +106,36 @@ impl EventHandler for Handler {
             let new_category = match &last_message {
                 Some(message)
                     if {
-                        let timestamp: DateTime<Utc> =
-                            message.edited_timestamp.unwrap_or(message.timestamp).into();
+                        let timestamp: DateTime<Utc> = message.timestamp.into();
                         Utc::now() - timestamp < Duration::days(30 * 2)
                     } =>
                 {
-                    ACTIVE_CATEGORY
+                    if let Some(index) =
+                        self.archived_explicitly
+                            .read()
+                            .iter()
+                            .position(|(id, timestamp)| {
+                                &channel.id == id && &message.timestamp > timestamp
+                            })
+                    {
+                        self.archived_explicitly.write().remove(index);
+                        self.update_file();
+                        ACTIVE_CATEGORY
+                    } else if self
+                        .archived_explicitly
+                        .read()
+                        .iter()
+                        .any(|(id, _timestamp)| id == &channel.id)
+                    {
+                        INACTIVE_CATEGORY
+                    } else {
+                        ACTIVE_CATEGORY
+                    }
                 }
                 _ => INACTIVE_CATEGORY,
             };
             if new_category == channel.category_id.unwrap() {
                 continue;
-            }
-            if new_category == ACTIVE_CATEGORY {
-                if let Some(index) = self
-                    .archived_explicitly
-                    .read()
-                    .iter()
-                    .position(|(id, _timestamp)| id == &channel.id)
-                {
-                    self.archived_explicitly.write().remove(index);
-                    self.update_file();
-                }
             }
             let new_position = names_and_positions
                 .iter()
