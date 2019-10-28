@@ -9,7 +9,11 @@ use serenity::{
     },
     prelude::*,
 };
-use std::{convert::TryInto, iter::once};
+use std::{
+    convert::TryInto,
+    fs::{read, write},
+    iter::once,
+};
 
 //token in gitignore to prevent leak
 const TOKEN: &str = include_str!("bot-token.txt");
@@ -17,12 +21,17 @@ const ACTIVE_CATEGORY: ChannelId = ChannelId(530604963911696404);
 const INACTIVE_CATEGORY: ChannelId = ChannelId(541808219593506827);
 const GUILD: GuildId = GuildId(530598289813536771);
 
+const FILE: &str = "./archived.bincode";
+
 fn main() {
     let mut client = loop {
         match Client::new(
             TOKEN,
             Handler {
-                archived_explicitly: Default::default(),
+                archived_explicitly: read(FILE)
+                    .map(|bytes| bincode::deserialize(&bytes).expect("corrupted file"))
+                    .unwrap_or(vec![])
+                    .into(),
             },
         ) {
             Ok(client) => break client,
@@ -85,12 +94,12 @@ impl EventHandler for Handler {
                     let index_option = read_guard
                         .iter()
                         .position(|(id, _timestamp)| id == &channel.id);
-                    //read guard gets dropped here => write guard is ok now
                     let mut write_guard = self.archived_explicitly.write();
                     if let Some(index) = index_option {
                         write_guard.remove(index);
                     }
                     write_guard.push(entry);
+                    self.update_file();
                     let _ = channel.delete_messages(&ctx, once(message));
                 }
             }
@@ -117,6 +126,7 @@ impl EventHandler for Handler {
                     .position(|(id, _timestamp)| id == &channel.id)
                 {
                     self.archived_explicitly.write().remove(index);
+                    self.update_file();
                 }
             }
             let new_position = names_and_positions
@@ -136,5 +146,14 @@ impl EventHandler for Handler {
                 edit_channel.category(new_category).position(new_position)
             });
         }
+    }
+}
+
+impl Handler {
+    fn update_file(&self) {
+        let _ = write(
+            FILE,
+            bincode::serialize(&*self.archived_explicitly.read()).unwrap(),
+        );
     }
 }
