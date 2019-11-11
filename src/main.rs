@@ -99,7 +99,7 @@ impl EventHandler for Handler {
                         Ok(permissions) => permissions,
                         Err(_) => continue,
                     }
-                    .contains(Permissions::MANAGE_MESSAGES)
+                    .contains(Permissions::MANAGE_CHANNELS)
                     && !archived_lock.contains(&entry)
                 {
                     if let Some(index) = archived_lock
