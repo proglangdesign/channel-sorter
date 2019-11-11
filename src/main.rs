@@ -142,11 +142,11 @@ impl EventHandler for Handler {
             }
             let new_position = names_and_positions
                 .iter()
-                .max_by(|(cur_name, _cur_pos), (msg_name, _msg_pos)| {
-                    if msg_name < &channel.name {
-                        msg_name.cmp(cur_name)
+                .max_by(|(left, _), (right, _)| {
+                    if left >= &channel.name && right >= &channel.name {
+                        right.cmp(left) //smallest
                     } else {
-                        cur_name.cmp(msg_name)
+                        left.cmp(right) //biggest
                     }
                 })
                 .map(|(name, pos)| if &channel.name < name { *pos } else { pos + 1 })
