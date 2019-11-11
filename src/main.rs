@@ -1,19 +1,22 @@
-use chrono::{
-    offset::{FixedOffset, Utc},
-    DateTime, Duration,
-};
-use serenity::{
-    model::{
-        channel::Message,
-        id::{ChannelId, GuildId},
-        permissions::Permissions,
+use {
+    chrono::{
+        offset::{FixedOffset, Utc},
+        DateTime, Duration,
     },
-    prelude::*,
-};
-use std::{
-    convert::TryInto,
-    fs::{read, write},
-    iter::once,
+    serenity::{
+        model::{
+            channel::Message,
+            id::{ChannelId, GuildId},
+            permissions::Permissions,
+        },
+        prelude::*,
+    },
+    std::{
+        convert::TryInto,
+        fs::{read, write},
+        iter::once,
+        mem::drop,
+    },
 };
 
 //token in gitignore to prevent leak
@@ -29,7 +32,7 @@ fn main() {
         match Client::new(
             TOKEN,
             Handler {
-                archived_explicitly: read(FILE)
+                archived: read(FILE)
                     .map(|bytes| bincode::deserialize(&bytes).expect("corrupted file"))
                     .unwrap_or(vec![])
                     .into(),
@@ -46,11 +49,12 @@ fn main() {
 }
 
 struct Handler {
-    archived_explicitly: RwLock<Vec<(ChannelId, DateTime<FixedOffset>)>>,
+    archived: Mutex<Vec<(ChannelId, DateTime<FixedOffset>)>>,
 }
 
 impl EventHandler for Handler {
     fn message(&self, ctx: Context, _msg: Message) {
+        let mut archived_lock = self.archived.lock();
         let mut channels = match GUILD.channels(&ctx) {
             Ok(channels) => channels,
             Err(why) => {
@@ -90,24 +94,22 @@ impl EventHandler for Handler {
                     channel.id,
                     message.edited_timestamp.unwrap_or(message.timestamp),
                 );
-                let read_guard = self.archived_explicitly.read();
                 if message.content.trim() == "!archive"
                     && match channel.permissions_for_user(&ctx, &message.author) {
                         Ok(permissions) => permissions,
                         Err(_) => continue,
                     }
                     .contains(Permissions::MANAGE_MESSAGES)
-                    && !read_guard.contains(&entry)
+                    && !archived_lock.contains(&entry)
                 {
-                    let index_option = read_guard
+                    if let Some(index) = archived_lock
                         .iter()
-                        .position(|(id, _timestamp)| id == &channel.id);
-                    let mut write_guard = self.archived_explicitly.write();
-                    if let Some(index) = index_option {
-                        write_guard.remove(index);
+                        .position(|(id, _timestamp)| id == &channel.id)
+                    {
+                        archived_lock.remove(index);
                     }
-                    write_guard.push(entry);
-                    self.update_file();
+                    archived_lock.push(entry);
+                    update_file(&archived_lock);
                     let _ = channel.delete_messages(&ctx, once(message));
                 }
             }
@@ -118,20 +120,13 @@ impl EventHandler for Handler {
                         Utc::now() - timestamp < Duration::days(30 * 2)
                     } =>
                 {
-                    if let Some(index) =
-                        self.archived_explicitly
-                            .read()
-                            .iter()
-                            .position(|(id, timestamp)| {
-                                &channel.id == id && &message.timestamp > timestamp
-                            })
-                    {
-                        self.archived_explicitly.write().remove(index);
-                        self.update_file();
+                    if let Some(index) = archived_lock.iter().position(|(id, timestamp)| {
+                        &channel.id == id && &message.timestamp > timestamp
+                    }) {
+                        archived_lock.remove(index);
+                        update_file(&archived_lock);
                         ACTIVE_CATEGORY
-                    } else if self
-                        .archived_explicitly
-                        .read()
+                    } else if archived_lock
                         .iter()
                         .any(|(id, _timestamp)| id == &channel.id)
                     {
@@ -162,14 +157,11 @@ impl EventHandler for Handler {
                 edit_channel.category(new_category).position(new_position)
             });
         }
+        //makes sure the message functions always run in sequence
+        drop(archived_lock);
     }
 }
 
-impl Handler {
-    fn update_file(&self) {
-        let _ = write(
-            FILE,
-            bincode::serialize(&*self.archived_explicitly.read()).unwrap(),
-        );
-    }
+fn update_file(archived: &[(ChannelId, DateTime<FixedOffset>)]) {
+    let _ = write(FILE, bincode::serialize(&archived).unwrap());
 }
