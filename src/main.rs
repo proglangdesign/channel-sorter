@@ -62,15 +62,21 @@ impl EventHandler for Handler {
                 return;
             }
         };
-        let names_and_positions: Vec<_> = channels
-            .iter()
-            .filter_map(|(_id, guild_channel)| match guild_channel.category_id {
-                Some(category) if category == ACTIVE_CATEGORY => {
-                    Some((guild_channel.name.clone(), guild_channel.position))
-                }
-                _ => None,
-            })
-            .collect();
+        let names_and_positions = |filtered_category| {
+            channels
+                .iter()
+                .filter_map(|(_id, guild_channel)| match guild_channel.category_id {
+                    Some(category) if category == filtered_category => {
+                        Some((guild_channel.name.clone(), guild_channel.position))
+                    }
+                    _ => None,
+                })
+                .collect()
+        };
+        let (active_n_p, inactive_n_p) = (
+            names_and_positions(ACTIVE_CATEGORY),
+            names_and_positions(INACTIVE_CATEGORY),
+        );
         let relevant_channels = channels.iter_mut().filter_map(|(_id, guild_channel)| {
             match guild_channel.category_id {
                 Some(category) if category == ACTIVE_CATEGORY || category == INACTIVE_CATEGORY => {
@@ -140,6 +146,11 @@ impl EventHandler for Handler {
             if new_category == channel.category_id.unwrap() {
                 continue;
             }
+            let names_and_positions: &Vec<_> = match new_category {
+                ACTIVE_CATEGORY => &active_n_p,
+                INACTIVE_CATEGORY => &inactive_n_p,
+                _ => unreachable!(),
+            };
             let new_position = names_and_positions
                 .iter()
                 .max_by(|(left, _), (right, _)| {
