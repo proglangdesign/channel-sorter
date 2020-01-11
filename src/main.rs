@@ -1,5 +1,6 @@
 use {
     chrono::{
+        naive::NaiveDateTime,
         offset::{FixedOffset, Utc},
         DateTime, Duration,
     },
@@ -33,7 +34,26 @@ fn main() {
             TOKEN,
             Handler {
                 archived: read(FILE)
-                    .map(|bytes| bincode::deserialize(&bytes).expect("corrupted file"))
+                    .map(|bytes| {
+                        let mut result = Vec::with_capacity(bytes.len() / 20);
+                        let mut slice = &bytes[..];
+                        while !slice.is_empty() {
+                            result.push((
+                                ChannelId(u64::from_le_bytes((&slice[..8]).try_into().unwrap())),
+                                DateTime::<FixedOffset>::from_utc(
+                                    NaiveDateTime::from_timestamp(
+                                        i64::from_le_bytes((&slice[8..16]).try_into().unwrap()),
+                                        0, //nanoseconds to make Unix timestamp more precise, not needed
+                                    ),
+                                    FixedOffset::east(i32::from_le_bytes(
+                                        (&slice[16..20]).try_into().unwrap(),
+                                    )),
+                                ),
+                            ));
+                            slice = &slice[20..];
+                        }
+                        result
+                    })
                     .unwrap_or(vec![])
                     .into(),
             },
@@ -174,5 +194,11 @@ impl EventHandler for Handler {
 }
 
 fn update_file(archived: &[(ChannelId, DateTime<FixedOffset>)]) {
-    let _ = write(FILE, bincode::serialize(&archived).unwrap());
+    let mut out = Vec::with_capacity(20 * archived.len());
+    for (id, timestamp) in archived {
+        out.extend_from_slice(&id.0.to_le_bytes());
+        out.extend_from_slice(&timestamp.timestamp().to_le_bytes());
+        out.extend_from_slice(&timestamp.offset().local_minus_utc().to_le_bytes());
+    }
+    let _ = write(FILE, out);
 }
