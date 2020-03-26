@@ -24,6 +24,7 @@ use {
 const TOKEN: &str = include_str!("bot-token.txt");
 const ACTIVE_CATEGORY: ChannelId = ChannelId(530604963911696404);
 const INACTIVE_CATEGORY: ChannelId = ChannelId(541808219593506827);
+const STICKY_CHANNEL: ChannelId = ChannelId(688618253563592718);
 const GUILD: GuildId = GuildId(530598289813536771);
 
 const FILE: &str = "./archived.bincode";
@@ -97,7 +98,10 @@ impl EventHandler for Handler {
             names_and_positions(ACTIVE_CATEGORY),
             names_and_positions(INACTIVE_CATEGORY),
         );
-        let relevant_channels = channels.iter_mut().filter_map(|(_id, guild_channel)| {
+        let relevant_channels = channels.iter_mut().filter_map(|(&id, guild_channel)| {
+            if id == STICKY_CHANNEL {
+                return None;
+            }
             match guild_channel.category_id {
                 Some(category) if category == ACTIVE_CATEGORY || category == INACTIVE_CATEGORY => {
                     Some(guild_channel)
