@@ -87,7 +87,9 @@ impl EventHandler for Handler {
             channels
                 .iter()
                 .filter_map(|(_id, guild_channel)| match guild_channel.category_id {
-                    Some(category) if category == filtered_category => {
+                    Some(category)
+                        if category == filtered_category && guild_channel.id != STICKY_CHANNEL =>
+                    {
                         Some((guild_channel.name.clone(), guild_channel.position))
                     }
                     _ => None,
@@ -185,7 +187,7 @@ impl EventHandler for Handler {
                     }
                 })
                 .map(|(name, pos)| if &channel.name < name { *pos } else { pos + 1 })
-                .unwrap_or(0)
+                .unwrap_or(1)
                 .try_into()
                 .unwrap();
             let _ = channel.edit(&ctx, |edit_channel| {
