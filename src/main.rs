@@ -13,6 +13,7 @@ use {
         prelude::*,
     },
     std::{
+        cmp::Ordering::Less,
         convert::TryInto,
         fs::{read, write},
         iter::once,
@@ -22,7 +23,8 @@ use {
 
 //token in gitignore to prevent leak
 const TOKEN: &str = include_str!("bot-token.txt");
-const ACTIVE_CATEGORY: ChannelId = ChannelId(530604963911696404);
+const ACTIVE_CATEGORIES: [ChannelId; 2] =
+    [ChannelId(530604963911696404), ChannelId(745791509290418187)];
 const INACTIVE_CATEGORY: ChannelId = ChannelId(541808219593506827);
 const STICKY_CHANNEL: ChannelId = ChannelId(688618253563592718);
 const GUILD: GuildId = GuildId(530598289813536771);
@@ -97,7 +99,10 @@ impl EventHandler for Handler {
                 .collect()
         };
         let (active_n_p, inactive_n_p) = (
-            names_and_positions(ACTIVE_CATEGORY),
+            [
+                names_and_positions(ACTIVE_CATEGORIES[0]),
+                names_and_positions(ACTIVE_CATEGORIES[1]),
+            ],
             names_and_positions(INACTIVE_CATEGORY),
         );
         let relevant_channels = channels.iter_mut().filter_map(|(&id, guild_channel)| {
@@ -105,7 +110,9 @@ impl EventHandler for Handler {
                 return None;
             }
             match guild_channel.category_id {
-                Some(category) if category == ACTIVE_CATEGORY || category == INACTIVE_CATEGORY => {
+                Some(category)
+                    if ACTIVE_CATEGORIES.contains(&category) || category == INACTIVE_CATEGORY =>
+                {
                     Some(guild_channel)
                 }
                 _ => None,
@@ -152,19 +159,26 @@ impl EventHandler for Handler {
                         Utc::now() - timestamp < Duration::days(30 * 2)
                     } =>
                 {
+                    let active_category = {
+                        if channel.name.cmp(&String::from("n")) == Less {
+                            ACTIVE_CATEGORIES[0]
+                        } else {
+                            ACTIVE_CATEGORIES[1]
+                        }
+                    };
                     if let Some(index) = archived_lock.iter().position(|(id, timestamp)| {
                         &channel.id == id && &message.timestamp > timestamp
                     }) {
                         archived_lock.remove(index);
                         update_file(&archived_lock);
-                        ACTIVE_CATEGORY
+                        active_category
                     } else if archived_lock
                         .iter()
                         .any(|(id, _timestamp)| id == &channel.id)
                     {
                         INACTIVE_CATEGORY
                     } else {
-                        ACTIVE_CATEGORY
+                        active_category
                     }
                 }
                 _ => INACTIVE_CATEGORY,
@@ -172,10 +186,12 @@ impl EventHandler for Handler {
             if new_category == channel.category_id.unwrap() {
                 continue;
             }
-            let names_and_positions: &Vec<_> = match new_category {
-                ACTIVE_CATEGORY => &active_n_p,
-                INACTIVE_CATEGORY => &inactive_n_p,
-                _ => unreachable!(),
+            let names_and_positions: &Vec<_> = if new_category == ACTIVE_CATEGORIES[0] {
+                &active_n_p[0]
+            } else if new_category == ACTIVE_CATEGORIES[1] {
+                &active_n_p[1]
+            } else {
+                &inactive_n_p
             };
             let new_position = names_and_positions
                 .iter()
