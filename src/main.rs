@@ -7,8 +7,7 @@ use {
     serenity::{
         model::{
             channel::Message,
-            id::{ChannelId, GuildId},
-            permissions::Permissions,
+            id::{ChannelId, GuildId, RoleId},
         },
         prelude::*,
     },
@@ -27,6 +26,7 @@ const ACTIVE_CATEGORIES: [ChannelId; 2] =
     [ChannelId(530604963911696404), ChannelId(745791509290418187)];
 const INACTIVE_CATEGORY: ChannelId = ChannelId(541808219593506827);
 const STICKY_CHANNEL: ChannelId = ChannelId(688618253563592718);
+const PERMISSION_ROLE: RoleId = RoleId(530618624122028042);
 const GUILD: GuildId = GuildId(530598289813536771);
 
 const FILE: &str = "./archived.bincode";
@@ -134,11 +134,10 @@ impl EventHandler for Handler {
                     message.edited_timestamp.unwrap_or(message.timestamp),
                 );
                 if message.content.trim() == "!archive"
-                    && match channel.permissions_for_user(&ctx, &message.author) {
-                        Ok(permissions) => permissions,
-                        Err(_) => continue,
-                    }
-                    .contains(Permissions::MANAGE_CHANNELS)
+                    && message
+                        .author
+                        .has_role(&ctx, GUILD, PERMISSION_ROLE)
+                        .unwrap_or(false)
                     && !archived_lock.contains(&entry)
                 {
                     if let Some(index) = archived_lock
